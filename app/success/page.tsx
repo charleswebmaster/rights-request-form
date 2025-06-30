@@ -1,15 +1,19 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle, Mail, FileText } from "lucide-react"
+import { CheckCircle, Mail, FileText, AlertCircle } from "lucide-react"
 import Link from "next/link"
 
-export default function SuccessPage({
-  searchParams,
-}: {
-  searchParams: { ref?: string }
-}) {
+interface SuccessPageProps {
+  searchParams: {
+    ref?: string
+    emails?: string
+  }
+}
+
+export default function SuccessPage({ searchParams }: SuccessPageProps) {
   const referenceNumber = searchParams.ref
+  const emailsStatus = searchParams.emails
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -22,7 +26,7 @@ export default function SuccessPage({
           {referenceNumber && (
             <div className="bg-green-50 p-3 rounded-lg mt-4">
               <p className="text-sm font-medium text-green-800">Reference Number:</p>
-              <p className="text-lg font-bold text-green-900">{referenceNumber}</p>
+              <p className="text-lg font-bold text-green-900 font-mono">{referenceNumber}</p>
             </div>
           )}
         </CardHeader>
@@ -34,15 +38,27 @@ export default function SuccessPage({
               within 30 days as required by law.
             </p>
 
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <div className="flex items-center justify-center mb-2">
-                <Mail className="h-5 w-5 text-blue-600 mr-2" />
-                <span className="font-medium text-blue-800">Email Confirmation Sent</span>
+            {emailsStatus === "sent" ? (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="flex items-center justify-center mb-2">
+                  <Mail className="h-5 w-5 text-blue-600 mr-2" />
+                  <span className="font-medium text-blue-800">Email Confirmations Sent</span>
+                </div>
+                <p className="text-sm text-blue-700">
+                  Confirmation emails have been sent to both you and our processing team.
+                </p>
               </div>
-              <p className="text-sm text-blue-700">
-                A confirmation email with your submission details has been sent to the email address you provided.
-              </p>
-            </div>
+            ) : (
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <div className="flex items-center justify-center mb-2">
+                  <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
+                  <span className="font-medium text-yellow-800">Request Received</span>
+                </div>
+                <p className="text-sm text-yellow-700">
+                  Your request has been logged successfully. Email notifications may be delayed.
+                </p>
+              </div>
+            )}
 
             <div className="bg-gray-50 p-4 rounded-lg">
               <div className="flex items-center justify-center mb-2">

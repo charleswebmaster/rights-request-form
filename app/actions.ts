@@ -11,61 +11,79 @@ export async function submitRightsRequest(formData: FormData) {
   console.log("=== FORM SUBMISSION STARTED ===")
 
   try {
-    // Extract form data with validation
-    const data = {
-      method: formData.get("method"),
-      name: formData.get("name"),
-      dobDay: formData.get("dob-day"),
-      dobMonth: formData.get("dob-month"),
-      dobYear: formData.get("dob-year"),
-      address: formData.get("address"),
-      telephone: formData.get("telephone"),
-      email: formData.get("email"),
-      identification: formData.getAll("identification"),
-      rights: formData.getAll("rights"),
-      description: formData.get("description"),
-      feedbackMethod: formData.get("feedback-method"),
-      date: formData.get("date"),
-      signature: formData.get("signature"),
+    // Extract and validate form data more safely
+    const extractFormValue = (key: string): string => {
+      const value = formData.get(key)
+      return value ? value.toString().trim() : ""
     }
 
-    console.log("Form data extracted:", {
-      name: data.name,
-      email: data.email,
-      hasDescription: !!data.description,
-      hasSignature: !!data.signature,
+    const extractFormArray = (key: string): string[] => {
+      const values = formData.getAll(key)
+      return values.map((v) => v.toString().trim()).filter((v) => v.length > 0)
+    }
+
+    const data = {
+      method: extractFormValue("method") || "in-person",
+      name: extractFormValue("name"),
+      dobDay: extractFormValue("dob-day"),
+      dobMonth: extractFormValue("dob-month"),
+      dobYear: extractFormValue("dob-year"),
+      address: extractFormValue("address"),
+      telephone: extractFormValue("telephone"),
+      email: extractFormValue("email"),
+      identification: extractFormArray("identification"),
+      rights: extractFormArray("rights"),
+      description: extractFormValue("description"),
+      feedbackMethod: extractFormValue("feedback-method") || "correspondence",
+      date: extractFormValue("date"),
+      signature: extractFormValue("signature"),
+    }
+
+    console.log("Form data extracted successfully:", {
+      name: data.name ? "✓" : "✗",
+      email: data.email ? "✓" : "✗",
+      description: data.description ? "✓" : "✗",
+      signature: data.signature ? "✓" : "✗",
       rightsCount: data.rights.length,
     })
 
     // Validate required fields
-    const requiredFields = {
-      name: data.name,
-      dobDay: data.dobDay,
-      dobMonth: data.dobMonth,
-      dobYear: data.dobYear,
-      address: data.address,
-      description: data.description,
-      signature: data.signature,
-      date: data.date,
-    }
+    const requiredFields = [
+      { field: "name", value: data.name, label: "Name" },
+      { field: "dobDay", value: data.dobDay, label: "Birth Day" },
+      { field: "dobMonth", value: data.dobMonth, label: "Birth Month" },
+      { field: "dobYear", value: data.dobYear, label: "Birth Year" },
+      { field: "address", value: data.address, label: "Address" },
+      { field: "description", value: data.description, label: "Description" },
+      { field: "signature", value: data.signature, label: "Signature" },
+      { field: "date", value: data.date, label: "Date" },
+    ]
 
-    const missingFields = Object.entries(requiredFields)
-      .filter(([key, value]) => !value || value.toString().trim() === "")
-      .map(([key]) => key)
+    const missingFields = requiredFields.filter(({ value }) => !value || value.length === 0)
 
     if (missingFields.length > 0) {
-      console.error("Missing required fields:", missingFields)
-      throw new Error(`Missing required fields: ${missingFields.join(", ")}`)
+      const missingLabels = missingFields.map(({ label }) => label).join(", ")
+      console.error("Missing required fields:", missingLabels)
+      throw new Error(`Missing required fields: ${missingLabels}`)
     }
 
-    const submissionDate = new Date().toLocaleString()
-    const referenceNumber = `RR-${Date.now()}`
+    console.log("All required fields validated successfully")
+
+    const submissionDate = new Date().toLocaleString("en-US", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })
+    const referenceNumber = `RR-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`
 
     console.log("Generated reference number:", referenceNumber)
 
     // Format the admin notification email
-    const adminEmailContent = `
-REQUEST FOR IMPLEMENTATION OF RIGHTS - NEW SUBMISSION
+    const adminEmailContent = `REQUEST FOR IMPLEMENTATION OF RIGHTS - NEW SUBMISSION
 
 REFERENCE NUMBER: ${referenceNumber}
 ==========================================
@@ -103,12 +121,10 @@ Date: ${data.date}
 
 ---
 This form was submitted electronically and constitutes a valid request for implementation of rights.
-The submitter has agreed to the terms and privacy policy by providing their digital signature.
-    `.trim()
+The submitter has agreed to the terms and privacy policy by providing their digital signature.`
 
     // Format the user confirmation email
-    const userEmailContent = `
-Dear ${data.name},
+    const userEmailContent = `Dear ${data.name},
 
 Thank you for submitting your Request for Implementation of Rights. We have successfully received your request and wanted to confirm the details with you.
 
@@ -153,69 +169,94 @@ ${COMPANY_NAME} Data Protection Team
 
 ---
 This is an automated confirmation email. Please do not reply to this email.
-If you need assistance, please contact us through our official channels.
-    `.trim()
+If you need assistance, please contact us through our official channels.`
 
-    // Email sending logic
-    console.log("Checking for RESEND_API_KEY...")
+    console.log("Email content prepared successfully")
+
+    // Email sending logic with better error handling
+    let emailsSent = false
+
     if (process.env.RESEND_API_KEY) {
       console.log("RESEND_API_KEY found, attempting to send emails...")
 
       try {
-        // Import Resend only when needed
+        // Dynamic import to avoid build-time issues
         const { Resend } = await import("resend")
         const resend = new Resend(process.env.RESEND_API_KEY)
 
-        console.log("Sending admin notification email...")
+        console.log("Resend client initialized successfully")
+
         // Send admin notification email
+        console.log("Sending admin notification email...")
         const adminResult = await resend.emails.send({
           from: SENDER_EMAIL,
           to: RECIPIENT_EMAIL,
-          subject: `New Rights Request Submission - ${data.name} (Ref: ${referenceNumber})`,
+          subject: `New Rights Request - ${data.name} (${referenceNumber})`,
           text: adminEmailContent,
         })
-        console.log("Admin email sent successfully:", adminResult.data?.id)
+
+        console.log("Admin email result:", adminResult)
 
         // Send user confirmation email (only if user provided an email)
-        if (data.email && data.email.toString().trim() !== "") {
+        if (data.email && data.email.includes("@")) {
           console.log("Sending user confirmation email to:", data.email)
           const userResult = await resend.emails.send({
             from: SENDER_EMAIL,
-            to: data.email.toString(),
-            subject: `Confirmation: Your Rights Request Has Been Received (Ref: ${referenceNumber})`,
+            to: data.email,
+            subject: `Rights Request Confirmation (${referenceNumber})`,
             text: userEmailContent,
           })
-          console.log("User email sent successfully:", userResult.data?.id)
+          console.log("User email result:", userResult)
         } else {
-          console.log("No user email provided, skipping user confirmation")
+          console.log("No valid user email provided, skipping user confirmation")
         }
+
+        emailsSent = true
+        console.log("All emails sent successfully")
       } catch (emailError) {
-        console.error("Error sending emails:", emailError)
-        // Log the specific error details
-        if (emailError instanceof Error) {
-          console.error("Email error message:", emailError.message)
-          console.error("Email error stack:", emailError.stack)
-        }
-        // Don't throw here - continue with the process even if email fails
-        console.log("Continuing with form submission despite email error...")
+        console.error("Email sending failed:", emailError)
+        console.error("Email error details:", {
+          message: emailError instanceof Error ? emailError.message : String(emailError),
+          name: emailError instanceof Error ? emailError.name : "Unknown",
+        })
+        // Continue without throwing - form submission should succeed even if emails fail
       }
     } else {
-      console.log("RESEND_API_KEY not found. Emails would be sent to:", RECIPIENT_EMAIL)
-      console.log("Admin email content preview:", adminEmailContent.substring(0, 200) + "...")
+      console.log("RESEND_API_KEY not configured - emails will not be sent")
+      console.log("Would send admin email to:", RECIPIENT_EMAIL)
       if (data.email) {
-        console.log("User confirmation would be sent to:", data.email)
+        console.log("Would send user confirmation to:", data.email)
       }
     }
 
-    console.log("Form submission completed successfully, redirecting to success page...")
+    console.log("Form processing completed successfully")
+    console.log("Redirecting to success page with reference:", referenceNumber)
+
+    // Use revalidatePath to ensure clean redirect
+    const { revalidatePath } = await import("next/cache")
+    revalidatePath("/success")
+
     // Redirect to success page with reference number
-    redirect(`/success?ref=${referenceNumber}`)
+    redirect(`/success?ref=${referenceNumber}&emails=${emailsSent ? "sent" : "skipped"}`)
   } catch (error) {
     console.error("=== FORM SUBMISSION ERROR ===")
-    console.error("Error type:", typeof error)
+    console.error("Error occurred in submitRightsRequest")
+    console.error("Error type:", error?.constructor?.name || typeof error)
     console.error("Error message:", error instanceof Error ? error.message : String(error))
-    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace")
+
+    if (error instanceof Error && error.stack) {
+      console.error("Error stack:", error.stack)
+    }
+
     console.error("=== END ERROR LOG ===")
+
+    // Use revalidatePath before redirect
+    try {
+      const { revalidatePath } = await import("next/cache")
+      revalidatePath("/error")
+    } catch (revalidateError) {
+      console.error("Revalidate error:", revalidateError)
+    }
 
     // Redirect to error page
     redirect("/error")
