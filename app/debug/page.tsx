@@ -40,7 +40,7 @@ export default function DebugPage() {
                   <span className="font-medium">Email Settings</span>
                 </div>
                 <p className="text-sm text-gray-600">Recipient: charles.onuoha@afya.care</p>
-                <p className="text-sm text-gray-600">Sender: noreply@yourwebsite.com</p>
+                <p className="text-sm text-gray-600">Sender: wecare@bastionhmo.com</p>
               </div>
             </div>
 

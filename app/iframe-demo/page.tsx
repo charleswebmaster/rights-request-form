@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function IframeDemoPage() {
   const iframeCode = `<iframe 
-  src="${typeof window !== "undefined" ? window.location.origin : "https://your-domain.com"}/embed" 
+  src="${typeof window !== "undefined" ? window.location.origin : "https://bastionhmo.com"}/embed" 
   width="100%" 
   height="1200" 
   frameborder="0" 

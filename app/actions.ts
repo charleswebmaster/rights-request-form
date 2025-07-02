@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 
 // Configuration - easily changeable
 const RECIPIENT_EMAIL = "charles.onuoha@afya.care"
-const SENDER_EMAIL = "noreply@yourwebsite.com" // Change this to your domain
+const SENDER_EMAIL = "wecare@bastionhmo.com" // Change this to your domain
 const COMPANY_NAME = "Bastion HMO" // Change to your company name
 
 export async function submitRightsRequest(formData: FormData) {
